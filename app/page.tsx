@@ -2,12 +2,19 @@
 
 import { useState, useEffect } from "react";
 
+type Task = {
+  id: string;
+  text: string;
+  completed: boolean;
+};
+
 type Goal = {
   id: string;
   text: string;
   color: string;
   createdAt: string;
   completed: boolean;
+  tasks: Task[];
 };
 
 const COLORS = [
@@ -21,6 +28,8 @@ const COLORS = [
 export default function Home() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [input, setInput] = useState("");
+  const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
+  const [taskInput, setTaskInput] = useState("");
 
   useEffect(() => {
     const saved = localStorage.getItem("ascend-goals");
@@ -42,6 +51,7 @@ export default function Home() {
       color,
       createdAt: new Date().toISOString(),
       completed: false,
+      tasks: [],
     };
     setGoals([...goals, newGoal]);
     setInput("");
@@ -49,6 +59,7 @@ export default function Home() {
 
   function deleteGoal(id: string) {
     setGoals(goals.filter((g) => g.id !== id));
+    if (expandedGoalId === id) setExpandedGoalId(null);
   }
 
   function toggleComplete(id: string) {
@@ -63,11 +74,54 @@ export default function Home() {
     setGoals(goals.filter((g) => !g.completed));
   }
 
-  // --- derived values: computed from state, not stored separately ---
+  function toggleExpanded(id: string) {
+    setExpandedGoalId(expandedGoalId === id ? null : id);
+  }
+
+  // --- Task operations ---
+  function addTask(goalId: string) {
+    if (taskInput.trim() === "") return;
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      text: taskInput,
+      completed: false,
+    };
+    setGoals(
+      goals.map((g) =>
+        g.id === goalId ? { ...g, tasks: [...g.tasks, newTask] } : g
+      )
+    );
+    setTaskInput("");
+  }
+
+  function toggleTask(goalId: string, taskId: string) {
+    setGoals(
+      goals.map((g) =>
+        g.id === goalId
+          ? {
+              ...g,
+              tasks: g.tasks.map((t) =>
+                t.id === taskId ? { ...t, completed: !t.completed } : t
+              ),
+            }
+          : g
+      )
+    );
+  }
+
+  function deleteTask(goalId: string, taskId: string) {
+    setGoals(
+      goals.map((g) =>
+        g.id === goalId
+          ? { ...g, tasks: g.tasks.filter((t) => t.id !== taskId) }
+          : g
+      )
+    );
+  }
+
   const completedCount = goals.filter((g) => g.completed).length;
   const totalCount = goals.length;
 
-  // Sort: incomplete goals first, completed at the bottom
   const sortedGoals = [...goals].sort((a, b) => {
     if (a.completed === b.completed) return 0;
     return a.completed ? 1 : -1;
@@ -78,7 +132,6 @@ export default function Home() {
       <h1 className="text-4xl font-bold mb-2">Ascend</h1>
       <p className="text-gray-600 mb-8">set your goals. climb daily.</p>
 
-      {/* Input + add button */}
       <div className="flex gap-2 w-full max-w-md">
         <input
           type="text"
@@ -95,7 +148,6 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Stats header — only shows if there's at least one goal */}
       {totalCount > 0 && (
         <div className="flex items-center justify-between w-full max-w-md mt-8 mb-2 px-1">
           <p className="text-sm text-gray-600">
@@ -112,7 +164,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Empty state — shown when no goals */}
       {totalCount === 0 ? (
         <div className="mt-12 text-center text-gray-400">
           <p className="text-lg">no goals yet 🎯</p>
@@ -120,34 +171,117 @@ export default function Home() {
         </div>
       ) : (
         <ul className="w-full max-w-md space-y-2">
-          {sortedGoals.map((goal) => (
-            <li
-              key={goal.id}
-              className={`flex items-center justify-between rounded-lg border px-4 py-3 ${goal.color}`}
-            >
-              <div className="flex items-center gap-3 flex-1">
-                <input
-                  type="checkbox"
-                  checked={goal.completed}
-                  onChange={() => toggleComplete(goal.id)}
-                  className="w-5 h-5 cursor-pointer"
-                />
-                <span
-                  className={`text-white font-medium ${
-                    goal.completed ? "line-through opacity-60" : ""
-                  }`}
-                >
-                  {goal.text}
-                </span>
-              </div>
-              <button
-                onClick={() => deleteGoal(goal.id)}
-                className="text-white/70 hover:text-white text-sm"
+          {sortedGoals.map((goal) => {
+            const isExpanded = expandedGoalId === goal.id;
+            const taskCompletedCount = goal.tasks.filter((t) => t.completed).length;
+            const taskTotalCount = goal.tasks.length;
+
+            return (
+              <li
+                key={goal.id}
+                className={`rounded-lg border ${goal.color}`}
               >
-                delete
-              </button>
-            </li>
-          ))}
+                {/* Goal row */}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={goal.completed}
+                      onChange={() => toggleComplete(goal.id)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <button
+                      onClick={() => toggleExpanded(goal.id)}
+                      className="flex-1 text-left"
+                    >
+                      <span
+                        className={`text-white font-medium ${
+                          goal.completed ? "line-through opacity-60" : ""
+                        }`}
+                      >
+                        {goal.text}
+                      </span>
+                      {taskTotalCount > 0 && (
+                        <span className="text-white/70 text-sm ml-2">
+                          ({taskCompletedCount}/{taskTotalCount})
+                        </span>
+                      )}
+                    </button>
+                    <span className="text-white/60 text-xs">
+                      {isExpanded ? "▲" : "▼"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => deleteGoal(goal.id)}
+                    className="text-white/70 hover:text-white text-sm ml-2"
+                  >
+                    delete
+                  </button>
+                </div>
+
+                {/* Expanded tasks section */}
+                {isExpanded && (
+                  <div className="bg-white/10 px-4 py-3 border-t border-white/20">
+                    {/* Task input */}
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        type="text"
+                        value={taskInput}
+                        onChange={(e) => setTaskInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") addTask(goal.id);
+                        }}
+                        placeholder="add a task..."
+                        className="flex-1 rounded border border-white/30 bg-white/20 px-3 py-1 text-white placeholder-white/60 text-sm"
+                      />
+                      <button
+                        onClick={() => addTask(goal.id)}
+                        className="rounded bg-white/30 hover:bg-white/40 px-3 py-1 text-white text-sm"
+                      >
+                        add
+                      </button>
+                    </div>
+
+                    {/* Task list */}
+                    {goal.tasks.length === 0 ? (
+                      <p className="text-white/60 text-sm italic">
+                        no tasks yet
+                      </p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {goal.tasks.map((task) => (
+                          <li
+                            key={task.id}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={task.completed}
+                              onChange={() => toggleTask(goal.id, task.id)}
+                              className="w-4 h-4 cursor-pointer"
+                            />
+                            <span
+                              className={`flex-1 text-white ${
+                                task.completed ? "line-through opacity-60" : ""
+                              }`}
+                            >
+                              {task.text}
+                            </span>
+                            <button
+                              onClick={() => deleteTask(goal.id, task.id)}
+                              className="text-white/60 hover:text-white text-xs"
+                            >
+                              ✕
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </main>
