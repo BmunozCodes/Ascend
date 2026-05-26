@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Task = {
   id: string;
@@ -24,6 +25,17 @@ const COLORS = [
   "bg-pink-500 border-pink-700",
   "bg-purple-500 border-purple-700",
 ];
+
+function celebrate() {
+  import("canvas-confetti").then((confetti) => {
+    confetti.default({
+      particleCount: 60,
+      spread: 60,
+      origin: { y: 0.7 },
+      colors: ["#3b82f6", "#10b981", "#eab308", "#ec4899", "#a855f7"],
+    });
+  });
+}
 
 export default function Home() {
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -78,7 +90,6 @@ export default function Home() {
     setExpandedGoalId(expandedGoalId === id ? null : id);
   }
 
-  // --- Task operations ---
   function addTask(goalId: string) {
     if (taskInput.trim() === "") return;
     const newTask: Task = {
@@ -128,162 +139,231 @@ export default function Home() {
   });
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-8">
-      <h1 className="text-4xl font-bold mb-2">Ascend</h1>
-      <p className="text-gray-600 mb-8">set your goals. climb daily.</p>
-
-      <div className="flex gap-2 w-full max-w-md">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="what's your goal?"
-          className="flex-1 rounded-lg border border-gray-300 px-4 py-2"
-        />
-        <button
-          onClick={addGoal}
-          className="rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-        >
-          add
-        </button>
-      </div>
-
-      {totalCount > 0 && (
-        <div className="flex items-center justify-between w-full max-w-md mt-8 mb-2 px-1">
-          <p className="text-sm text-gray-600">
-            {completedCount} of {totalCount} completed
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 px-4 py-12 sm:px-8">
+      <div className="mx-auto flex max-w-md flex-col items-center">
+        {/* Header */}
+        <header className="mb-10 flex flex-col items-center text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-2xl text-white shadow-md">
+            ▲
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            Ascend
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Set your goals. Climb daily.
           </p>
-          {completedCount > 0 && (
+        </header>
+
+        {/* Input card */}
+        <div className="w-full">
+          <div className="flex gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addGoal();
+              }}
+              placeholder="what's your goal?"
+              className="flex-1 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none"
+            />
             <button
-              onClick={clearCompleted}
-              className="text-sm text-gray-500 hover:text-red-600"
+              onClick={addGoal}
+              className="rounded-xl bg-slate-900 px-5 py-2 font-medium text-white transition hover:bg-slate-700 active:scale-95"
             >
-              clear completed
+              add
             </button>
-          )}
+          </div>
         </div>
-      )}
 
-      {totalCount === 0 ? (
-        <div className="mt-12 text-center text-gray-400">
-          <p className="text-lg">no goals yet 🎯</p>
-          <p className="text-sm mt-1">add your first one above to get started</p>
-        </div>
-      ) : (
-        <ul className="w-full max-w-md space-y-2">
-          {sortedGoals.map((goal) => {
-            const isExpanded = expandedGoalId === goal.id;
-            const taskCompletedCount = goal.tasks.filter((t) => t.completed).length;
-            const taskTotalCount = goal.tasks.length;
-
-            return (
-              <li
-                key={goal.id}
-                className={`rounded-lg border ${goal.color}`}
+        {/* Stats row */}
+        {totalCount > 0 && (
+          <div className="mb-3 mt-8 flex w-full items-center justify-between px-1">
+            <p className="text-sm font-medium text-slate-600">
+              {completedCount} of {totalCount} completed
+            </p>
+            {completedCount > 0 && (
+              <button
+                onClick={clearCompleted}
+                className="text-sm text-slate-400 transition hover:text-red-500"
               >
-                {/* Goal row */}
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-3 flex-1">
-                    <input
-                      type="checkbox"
-                      checked={goal.completed}
-                      onChange={() => toggleComplete(goal.id)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <button
-                      onClick={() => toggleExpanded(goal.id)}
-                      className="flex-1 text-left"
-                    >
-                      <span
-                        className={`text-white font-medium ${
-                          goal.completed ? "line-through opacity-60" : ""
-                        }`}
-                      >
-                        {goal.text}
-                      </span>
-                      {taskTotalCount > 0 && (
-                        <span className="text-white/70 text-sm ml-2">
-                          ({taskCompletedCount}/{taskTotalCount})
-                        </span>
-                      )}
-                    </button>
-                    <span className="text-white/60 text-xs">
-                      {isExpanded ? "▲" : "▼"}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => deleteGoal(goal.id)}
-                    className="text-white/70 hover:text-white text-sm ml-2"
-                  >
-                    delete
-                  </button>
-                </div>
+                clear completed
+              </button>
+            )}
+          </div>
+        )}
 
-                {/* Expanded tasks section */}
-                {isExpanded && (
-                  <div className="bg-white/10 px-4 py-3 border-t border-white/20">
-                    {/* Task input */}
-                    <div className="flex gap-2 mb-3">
+        {/* Empty state OR goals list */}
+        {totalCount === 0 ? (
+          <div className="mt-16 flex flex-col items-center text-center">
+            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-200 text-3xl">
+              🎯
+            </div>
+            <p className="font-medium text-slate-600">No goals yet</p>
+            <p className="mt-1 text-sm text-slate-400">
+              Add your first one above to start climbing
+            </p>
+          </div>
+        ) : (
+          <div className="w-full">
+            <AnimatePresence initial={false}>
+              {sortedGoals.map((goal) => {
+                const isExpanded = expandedGoalId === goal.id;
+                const taskCompletedCount = goal.tasks.filter(
+                  (t) => t.completed
+                ).length;
+                const taskTotalCount = goal.tasks.length;
+
+                return (
+                  <motion.div
+                    key={goal.id}
+                    layout
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.9,
+                      transition: { duration: 0.2 },
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    className={`mb-2 overflow-hidden rounded-2xl border shadow-sm transition-shadow hover:shadow-md ${goal.color}`}
+                  >
+                    {/* Goal row */}
+                    <div className="flex items-center gap-3 px-4 py-3">
                       <input
-                        type="text"
-                        value={taskInput}
-                        onChange={(e) => setTaskInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") addTask(goal.id);
-                        }}
-                        placeholder="add a task..."
-                        className="flex-1 rounded border border-white/30 bg-white/20 px-3 py-1 text-white placeholder-white/60 text-sm"
+                        type="checkbox"
+                        checked={goal.completed}
+                        onChange={() => toggleComplete(goal.id)}
+                        className="h-5 w-5 cursor-pointer accent-white"
                       />
                       <button
-                        onClick={() => addTask(goal.id)}
-                        className="rounded bg-white/30 hover:bg-white/40 px-3 py-1 text-white text-sm"
+                        onClick={() => toggleExpanded(goal.id)}
+                        className="flex flex-1 items-center justify-between text-left"
                       >
-                        add
+                        <span
+                          className={`font-medium text-white ${
+                            goal.completed ? "line-through opacity-60" : ""
+                          }`}
+                        >
+                          {goal.text}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {taskTotalCount > 0 && (
+                            <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs text-white">
+                              {taskCompletedCount}/{taskTotalCount}
+                            </span>
+                          )}
+                          <motion.span
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="text-xs text-white/60"
+                          >
+                            ▼
+                          </motion.span>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => deleteGoal(goal.id)}
+                        className="text-white/60 transition hover:scale-110 hover:text-white"
+                        aria-label="delete goal"
+                      >
+                        ✕
                       </button>
                     </div>
 
-                    {/* Task list */}
-                    {goal.tasks.length === 0 ? (
-                      <p className="text-white/60 text-sm italic">
-                        no tasks yet
-                      </p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {goal.tasks.map((task) => (
-                          <li
-                            key={task.id}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={task.completed}
-                              onChange={() => toggleTask(goal.id, task.id)}
-                              className="w-4 h-4 cursor-pointer"
-                            />
-                            <span
-                              className={`flex-1 text-white ${
-                                task.completed ? "line-through opacity-60" : ""
-                              }`}
-                            >
-                              {task.text}
-                            </span>
-                            <button
-                              onClick={() => deleteTask(goal.id, task.id)}
-                              className="text-white/60 hover:text-white text-xs"
-                            >
-                              ✕
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                    {/* Expanded tasks section */}
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: "easeOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="border-t border-white/20 bg-white/10 px-4 py-3">
+                            <div className="mb-3 flex gap-2">
+                              <input
+                                type="text"
+                                value={taskInput}
+                                onChange={(e) => setTaskInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") addTask(goal.id);
+                                }}
+                                placeholder="add a task..."
+                                className="flex-1 rounded-lg border border-white/30 bg-white/20 px-3 py-1.5 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
+                              />
+                              <button
+                                onClick={() => addTask(goal.id)}
+                                className="rounded-lg bg-white/30 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/40 active:scale-95"
+                              >
+                                add
+                              </button>
+                            </div>
+
+                            {goal.tasks.length === 0 ? (
+                              <p className="text-sm italic text-white/60">
+                                no tasks yet
+                              </p>
+                            ) : (
+                              <ul className="space-y-1.5">
+                                <AnimatePresence initial={false}>
+                                  {goal.tasks.map((task) => (
+                                    <motion.li
+                                      key={task.id}
+                                      layout
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      exit={{
+                                        opacity: 0,
+                                        x: 10,
+                                        transition: { duration: 0.15 },
+                                      }}
+                                      className="flex items-center gap-2 text-sm"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={task.completed}
+                                        onChange={() => {
+                                          toggleTask(goal.id, task.id);
+                                          if (!task.completed) celebrate();
+                                        }}
+                                        className="h-4 w-4 cursor-pointer accent-white"
+                                      />
+                                      <span
+                                        className={`flex-1 text-white ${
+                                          task.completed
+                                            ? "line-through opacity-60"
+                                            : ""
+                                        }`}
+                                      >
+                                        {task.text}
+                                      </span>
+                                      <button
+                                        onClick={() =>
+                                          deleteTask(goal.id, task.id)
+                                        }
+                                        className="text-xs text-white/60 transition hover:scale-110 hover:text-white"
+                                        aria-label="delete task"
+                                      >
+                                        ✕
+                                      </button>
+                                    </motion.li>
+                                  ))}
+                                </AnimatePresence>
+                              </ul>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
     </main>
   );
 }
