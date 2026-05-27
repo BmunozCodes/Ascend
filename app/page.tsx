@@ -42,6 +42,28 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
   const [taskInput, setTaskInput] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("ascend-dark-mode");
+    if (saved !== null) {
+      setDarkMode(saved === "true");
+    } else {
+      const systemPrefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+      setDarkMode(systemPrefersDark);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("ascend-dark-mode", String(darkMode));
+  }, [darkMode]);
 
   useEffect(() => {
     const saved = localStorage.getItem("ascend-goals");
@@ -139,24 +161,30 @@ export default function Home() {
   });
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 px-4 py-12 sm:px-8">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 px-4 py-12 transition-colors duration-300 sm:px-8 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <button
+        onClick={() => setDarkMode(!darkMode)}
+        className="fixed right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-lg shadow-md ring-1 ring-slate-200 backdrop-blur transition hover:scale-110 dark:bg-slate-800/80 dark:ring-slate-700"
+        aria-label="toggle dark mode"
+      >
+        {darkMode ? "☀️" : "🌙"}
+      </button>
+
       <div className="mx-auto flex max-w-md flex-col items-center">
-        {/* Header */}
         <header className="mb-10 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-2xl text-white shadow-md">
             ▲
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             Ascend
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Set your goals. Climb daily.
           </p>
         </header>
 
-        {/* Input card */}
         <div className="w-full">
-          <div className="flex gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200">
+          <div className="flex gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200 transition-colors dark:bg-slate-800 dark:ring-slate-700">
             <input
               type="text"
               value={input}
@@ -165,27 +193,26 @@ export default function Home() {
                 if (e.key === "Enter") addGoal();
               }}
               placeholder="what's your goal?"
-              className="flex-1 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none"
+              className="flex-1 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none dark:text-slate-100 dark:placeholder-slate-500"
             />
             <button
               onClick={addGoal}
-              className="rounded-xl bg-slate-900 px-5 py-2 font-medium text-white transition hover:bg-slate-700 active:scale-95"
+              className="rounded-xl bg-slate-900 px-5 py-2 font-medium text-white transition hover:bg-slate-700 active:scale-95 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
             >
               add
             </button>
           </div>
         </div>
 
-        {/* Stats row */}
         {totalCount > 0 && (
           <div className="mb-3 mt-8 flex w-full items-center justify-between px-1">
-            <p className="text-sm font-medium text-slate-600">
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
               {completedCount} of {totalCount} completed
             </p>
             {completedCount > 0 && (
               <button
                 onClick={clearCompleted}
-                className="text-sm text-slate-400 transition hover:text-red-500"
+                className="text-sm text-slate-400 transition hover:text-red-500 dark:text-slate-500"
               >
                 clear completed
               </button>
@@ -193,14 +220,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* Empty state OR goals list */}
         {totalCount === 0 ? (
           <div className="mt-16 flex flex-col items-center text-center">
-            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-200 text-3xl">
+            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-200 text-3xl dark:bg-slate-800">
               🎯
             </div>
-            <p className="font-medium text-slate-600">No goals yet</p>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="font-medium text-slate-600 dark:text-slate-300">
+              No goals yet
+            </p>
+            <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">
               Add your first one above to start climbing
             </p>
           </div>
@@ -228,7 +256,6 @@ export default function Home() {
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     className={`mb-2 overflow-hidden rounded-2xl border shadow-sm transition-shadow hover:shadow-md ${goal.color}`}
                   >
-                    {/* Goal row */}
                     <div className="flex items-center gap-3 px-4 py-3">
                       <input
                         type="checkbox"
@@ -271,7 +298,6 @@ export default function Home() {
                       </button>
                     </div>
 
-                    {/* Expanded tasks section */}
                     <AnimatePresence initial={false}>
                       {isExpanded && (
                         <motion.div
