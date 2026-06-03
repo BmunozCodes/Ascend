@@ -2,6 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Checkbox } from "./Checkbox";
+import Link from "next/link";
+import {
+  Sun,
+  Moon,
+  Plus,
+  X,
+  Lock,
+  ChevronDown,
+  BarChart3,
+} from "lucide-react";
 
 type Task = {
   id: string;
@@ -19,12 +30,12 @@ type Goal = {
   lockedInFor: string | null;
 };
 
-const COLORS = [
-  "bg-blue-500 border-blue-700",
-  "bg-green-500 border-green-700",
-  "bg-yellow-500 border-yellow-700",
-  "bg-pink-500 border-pink-700",
-  "bg-purple-500 border-purple-700",
+const ACCENTS = [
+  "#0EA5E9", // sky
+  "#10B981", // emerald
+  "#EAB308", // yellow
+  "#EC4899", // pink
+  "#8B5CF6", // violet
 ];
 
 function todayString(): string {
@@ -46,12 +57,35 @@ function yesterdayString(): string {
 function celebrate() {
   import("canvas-confetti").then((confetti) => {
     confetti.default({
-      particleCount: 60,
-      spread: 60,
+      particleCount: 50,
+      spread: 55,
       origin: { y: 0.7 },
-      colors: ["#3b82f6", "#10b981", "#eab308", "#ec4899", "#a855f7"],
+      colors: ["#C2410C", "#FB923C", "#FED7AA"],
+      ticks: 100,
     });
   });
+}
+
+function MountainMark({ size = 24, color = "currentColor" }: { size?: number; color?: string }) {
+  const scale = size / 52;
+  return (
+    <svg
+      width={size}
+      height={size * (32 / 52)}
+      viewBox="0 0 52 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M 2 30 L 16 8 L 26 22 L 36 4 L 50 30 Z"
+        fill={color}
+        stroke={color}
+        strokeWidth={1 / scale}
+        strokeLinejoin="miter"
+      />
+    </svg>
+  );
 }
 
 export default function Home() {
@@ -61,7 +95,9 @@ export default function Home() {
   const [taskInput, setTaskInput] = useState("");
   const [darkMode, setDarkMode] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [lastEvaluatedDate, setLastEvaluatedDate] = useState<string | null>(null);
+  const [history, setHistory] = useState<Record<string, "complete" | "partial" | "rest">>({});
 
   useEffect(() => {
     const saved = localStorage.getItem("ascend-dark-mode");
@@ -97,14 +133,26 @@ export default function Home() {
 
   useEffect(() => {
     const savedStreak = localStorage.getItem("ascend-streak");
+    const savedBest = localStorage.getItem("ascend-best-streak");
     const savedDate = localStorage.getItem("ascend-last-evaluated");
+    const savedHistory = localStorage.getItem("ascend-history");
     if (savedStreak) setStreak(parseInt(savedStreak));
+    if (savedBest) setBestStreak(parseInt(savedBest));
     if (savedDate) setLastEvaluatedDate(savedDate);
+    if (savedHistory) setHistory(JSON.parse(savedHistory));
   }, []);
 
   useEffect(() => {
     localStorage.setItem("ascend-streak", String(streak));
   }, [streak]);
+
+  useEffect(() => {
+    localStorage.setItem("ascend-best-streak", String(bestStreak));
+  }, [bestStreak]);
+
+  useEffect(() => {
+    localStorage.setItem("ascend-history", JSON.stringify(history));
+  }, [history]);
 
   useEffect(() => {
     if (lastEvaluatedDate) {
@@ -121,22 +169,33 @@ export default function Home() {
     }
     const yesterday = yesterdayString();
     const yesterdaysGoals = goals.filter((g) => g.lockedInFor === yesterday);
+
+    let outcome: "complete" | "partial" | "rest";
+
     if (yesterdaysGoals.length === 0) {
-      // Rest day — streak frozen
+      outcome = "rest";
     } else {
       const allCompleted = yesterdaysGoals.every((g) => g.completed);
       if (allCompleted) {
-        setStreak((s) => s + 1);
+        outcome = "complete";
+        setStreak((s) => {
+          const next = s + 1;
+          setBestStreak((b) => Math.max(b, next));
+          return next;
+        });
       } else {
+        outcome = "partial";
         setStreak(0);
       }
     }
+
+    setHistory((h) => ({ ...h, [yesterday]: outcome }));
     setLastEvaluatedDate(today);
   }, [goals, lastEvaluatedDate]);
 
   function addGoal() {
     if (input.trim() === "") return;
-    const color = COLORS[goals.length % COLORS.length];
+    const color = ACCENTS[goals.length % ACCENTS.length];
     const newGoal: Goal = {
       id: crypto.randomUUID(),
       text: input,
@@ -246,72 +305,75 @@ export default function Home() {
       <motion.div
         key={goal.id}
         layout
-        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        className={`mb-2 overflow-hidden rounded-2xl border shadow-sm transition-shadow hover:shadow-md ${goal.color}`}
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, transition: { duration: 0.15 } }}
+        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        className="group mb-2 overflow-hidden rounded-xl border border-[--border] bg-[--bg-elevated] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all hover:border-stone-300 hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] dark:hover:border-stone-700"
       >
-        <div className="flex items-center gap-3 px-4 py-3">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-3 px-4 py-3.5">
+          <Checkbox
             checked={goal.completed}
             onChange={() => toggleComplete(goal.id)}
-            className="h-5 w-5 cursor-pointer accent-white"
+            color={goal.color}
+            size={22}
           />
           <button
             onClick={() => toggleExpanded(goal.id)}
             className="flex flex-1 items-center justify-between text-left"
           >
             <span
-              className={`font-medium text-white ${
-                goal.completed ? "line-through opacity-60" : ""
+              className={`text-[15px] transition-colors ${
+                goal.completed
+                  ? "text-[--text-subtle] line-through"
+                  : "text-[--text]"
               }`}
             >
               {goal.text}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {taskTotalCount > 0 && (
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs text-white">
+                <span className="rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-[--text-muted] dark:bg-stone-800">
                   {taskCompletedCount}/{taskTotalCount}
                 </span>
               )}
               <motion.span
                 animate={{ rotate: isExpanded ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-                className="text-xs text-white/60"
+                transition={{ duration: 0.15 }}
+                className="text-[--text-subtle]"
               >
-                ▼
+                <ChevronDown size={14} />
               </motion.span>
             </div>
           </button>
 
-          {!isLockedToday && (
-            isLockedTomorrow ? (
+          {!isLockedToday &&
+            (isLockedTomorrow ? (
               <button
                 onClick={() => unlock(goal.id)}
-                className="rounded-full bg-white/20 px-2 py-1 text-xs text-white transition hover:bg-white/30"
+                className="rounded p-1 text-[--text-muted] transition-colors hover:bg-stone-100 hover:text-[--text] dark:hover:bg-stone-800"
                 title="Unlock"
+                aria-label="Unlock goal from tomorrow"
               >
-                🔒
+                <Lock size={14} />
               </button>
             ) : (
               <button
                 onClick={() => lockInForTomorrow(goal.id)}
-                className="rounded-full bg-white/20 px-2 py-1 text-xs text-white transition hover:bg-white/30"
+                className="rounded p-1 text-[--text-subtle] opacity-0 transition-all hover:bg-stone-100 hover:text-[--text] group-hover:opacity-100 dark:hover:bg-stone-800"
                 title="Lock in for tomorrow"
+                aria-label="Lock in for tomorrow"
               >
-                +
+                <Plus size={14} />
               </button>
-            )
-          )}
+            ))}
 
           <button
             onClick={() => deleteGoal(goal.id)}
-            className="text-white/60 transition hover:scale-110 hover:text-white"
-            aria-label="delete goal"
+            className="rounded p-1 text-[--text-subtle] opacity-0 transition-all hover:bg-stone-100 hover:text-[--text] group-hover:opacity-100 dark:hover:bg-stone-800"
+            aria-label="Delete goal"
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
 
@@ -321,10 +383,10 @@ export default function Home() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
-              <div className="border-t border-white/20 bg-white/10 px-4 py-3">
+              <div className="border-t border-[--border] bg-stone-50 px-4 py-3 dark:bg-stone-900/50">
                 <div className="mb-3 flex gap-2">
                   <input
                     type="text"
@@ -333,53 +395,58 @@ export default function Home() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") addTask(goal.id);
                     }}
-                    placeholder="add a task..."
-                    className="flex-1 rounded-lg border border-white/30 bg-white/20 px-3 py-1.5 text-sm text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
+                    placeholder="Add a task"
+                    className="flex-1 rounded border border-[--border] bg-[--bg-elevated] px-3 py-1.5 text-sm text-[--text] placeholder-[--text-subtle]"
                   />
                   <button
                     onClick={() => addTask(goal.id)}
-                    className="rounded-lg bg-white/30 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/40 active:scale-95"
+                    className="rounded bg-[--text] px-3 py-1.5 text-sm font-medium text-[--bg-elevated] transition-opacity hover:opacity-80"
                   >
-                    add
+                    Add
                   </button>
                 </div>
 
                 {goal.tasks.length === 0 ? (
-                  <p className="text-sm italic text-white/60">no tasks yet</p>
+                  <p className="text-xs italic text-[--text-subtle]">
+                    No tasks yet
+                  </p>
                 ) : (
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-1">
                     <AnimatePresence initial={false}>
                       {goal.tasks.map((task) => (
                         <motion.li
                           key={task.id}
                           layout
-                          initial={{ opacity: 0, x: -10 }}
+                          initial={{ opacity: 0, x: -4 }}
                           animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 10, transition: { duration: 0.15 } }}
-                          className="flex items-center gap-2 text-sm"
+                          exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                          transition={{ duration: 0.15 }}
+                          className="group/task flex items-center gap-2.5 py-1 text-sm"
                         >
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={task.completed}
                             onChange={() => {
                               toggleTask(goal.id, task.id);
                               if (!task.completed) celebrate();
                             }}
-                            className="h-4 w-4 cursor-pointer accent-white"
+                            color={goal.color}
+                            size={16}
                           />
                           <span
-                            className={`flex-1 text-white ${
-                              task.completed ? "line-through opacity-60" : ""
+                            className={`flex-1 ${
+                              task.completed
+                                ? "text-[--text-subtle] line-through"
+                                : "text-[--text]"
                             }`}
                           >
                             {task.text}
                           </span>
                           <button
                             onClick={() => deleteTask(goal.id, task.id)}
-                            className="text-xs text-white/60 transition hover:scale-110 hover:text-white"
-                            aria-label="delete task"
+                            className="rounded p-0.5 text-[--text-subtle] opacity-0 transition-opacity hover:text-[--text] group-hover/task:opacity-100"
+                            aria-label="Delete task"
                           >
-                            ✕
+                            <X size={12} />
                           </button>
                         </motion.li>
                       ))}
@@ -395,136 +462,149 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 px-4 py-12 transition-colors duration-300 sm:px-8 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <button
-        onClick={() => setDarkMode(!darkMode)}
-        className="fixed right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-lg shadow-md ring-1 ring-slate-200 backdrop-blur transition hover:scale-110 dark:bg-slate-800/80 dark:ring-slate-700"
-        aria-label="toggle dark mode"
-      >
-        {darkMode ? "☀️" : "🌙"}
-      </button>
+    <main className="min-h-dvh px-5 py-12 sm:px-8">
+      <div className="fixed right-5 top-5 z-10 flex gap-2">
+        <Link
+          href="/stats"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[--border] bg-[--bg-elevated] text-[--text-muted] transition-colors hover:text-[--text]"
+          aria-label="View stats"
+        >
+          <BarChart3 size={16} />
+        </Link>
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[--border] bg-[--bg-elevated] text-[--text-muted] transition-colors hover:text-[--text]"
+          aria-label="Toggle dark mode"
+        >
+          {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+      </div>
 
-      <div className="mx-auto flex max-w-md flex-col items-center">
-        <header className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-2xl text-white shadow-md">
-            ▲
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+      <div className="mx-auto flex max-w-md flex-col">
+        <header className="mb-10 flex items-center gap-3">
+          <MountainMark size={28} color="var(--color-accent)" />
+          <h1
+            className="font-serif text-[32px] font-medium leading-none tracking-tight text-[--text]"
+            style={{ fontFamily: "var(--font-serif), Georgia, serif" }}
+          >
             Ascend
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Set your goals. Climb daily.
-          </p>
-
-          <motion.div
-            key={streak}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            className="mt-4 flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-100 to-red-100 px-4 py-1.5 shadow-sm ring-1 ring-orange-200 dark:from-orange-950 dark:to-red-950 dark:ring-orange-900"
-          >
-            <span className="text-lg">🔥</span>
-            <span className="text-sm font-bold text-orange-900 dark:text-orange-200">
-              {streak} day{streak === 1 ? "" : "s"}
-            </span>
-          </motion.div>
         </header>
 
-        <div className="w-full">
-          <div className="flex gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200 transition-colors dark:bg-slate-800 dark:ring-slate-700">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") addGoal();
-              }}
-              placeholder="add a new goal..."
-              className="flex-1 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none dark:text-slate-100 dark:placeholder-slate-500"
-            />
-            <button
-              onClick={addGoal}
-              className="rounded-xl bg-slate-900 px-5 py-2 font-medium text-white transition hover:bg-slate-700 active:scale-95 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
-            >
-              add
-            </button>
-          </div>
+        <div className="mb-8 flex items-end justify-between">
+          <p className="text-sm text-[--text-muted]">
+            Set your goals. Climb daily.
+          </p>
+          <motion.div
+            key={streak}
+            initial={{ scale: 0.92, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="flex items-center gap-1.5 rounded-full border border-[--color-accent-border] bg-[--color-accent-soft] px-2.5 py-1 dark:border-orange-900/60 dark:bg-orange-950/30"
+          >
+            <MountainMark size={11} color="var(--color-accent)" />
+            <span className="text-xs font-medium tabular-nums text-[--color-accent-text] dark:text-orange-300">
+              {streak} {streak === 1 ? "day" : "days"}
+            </span>
+          </motion.div>
         </div>
 
-        <section className="mt-8 w-full">
-          <div className="mb-3 flex items-center justify-between px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="mb-12 flex gap-2 rounded-lg border border-[--border] bg-[--bg-elevated] p-1.5">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addGoal();
+            }}
+            placeholder="What's your goal?"
+            className="flex-1 bg-transparent px-2 py-1.5 text-[15px] text-[--text] placeholder-[--text-subtle]"
+          />
+          <button
+            onClick={addGoal}
+            className="rounded-md bg-[--text] px-4 py-1.5 text-sm font-medium text-[--bg-elevated] transition-opacity hover:opacity-80"
+          >
+            Add
+          </button>
+        </div>
+
+        <section className="mb-10">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2
+              className="font-serif text-lg font-medium text-[--text]"
+              style={{ fontFamily: "var(--font-serif), Georgia, serif" }}
+            >
               Today
             </h2>
             {todayTotalCount > 0 && (
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-mono text-xs tabular-nums text-[--text-muted]">
                 {todayCompletedCount}/{todayTotalCount}
               </span>
             )}
           </div>
           {todaysGoals.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/40 p-6 text-center dark:border-slate-700 dark:bg-slate-900/40">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+            <div className="rounded-lg border border-dashed border-[--border] px-4 py-6 text-center">
+              <p className="text-sm text-[--text-muted]">
                 Nothing locked in for today.
               </p>
-              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                Lock in goals today for tomorrow!
+              <p className="mt-1 text-xs text-[--text-subtle]">
+                Lock in goals below for tomorrow.
               </p>
             </div>
           ) : (
-            <div className="w-full">
-              <AnimatePresence initial={false}>
-                {todaysGoals.map((goal) => renderGoalCard(goal))}
-              </AnimatePresence>
-            </div>
+            <AnimatePresence initial={false}>
+              {todaysGoals.map((goal) => renderGoalCard(goal))}
+            </AnimatePresence>
           )}
         </section>
 
-        <section className="mt-8 w-full">
-          <div className="mb-3 flex items-center justify-between px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <section className="mb-10">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2
+              className="font-serif text-lg font-medium text-[--text]"
+              style={{ fontFamily: "var(--font-serif), Georgia, serif" }}
+            >
               Tomorrow
             </h2>
             {tomorrowsGoals.length > 0 && (
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-mono text-xs tabular-nums text-[--text-muted]">
                 {tomorrowsGoals.length} locked in
               </span>
             )}
           </div>
           {tomorrowsGoals.length === 0 ? (
-            <p className="px-1 text-sm italic text-slate-400 dark:text-slate-500">
-              Lock in goals from below ↓
+            <p className="text-sm italic text-[--text-subtle]">
+              Lock in goals from below.
             </p>
           ) : (
-            <div className="w-full">
-              <AnimatePresence initial={false}>
-                {tomorrowsGoals.map((goal) => renderGoalCard(goal))}
-              </AnimatePresence>
-            </div>
+            <AnimatePresence initial={false}>
+              {tomorrowsGoals.map((goal) => renderGoalCard(goal))}
+            </AnimatePresence>
           )}
         </section>
 
-        <section className="mt-8 w-full">
-          <div className="mb-3 flex items-center justify-between px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              All Goals
+        <section className="mb-10">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2
+              className="font-serif text-lg font-medium text-[--text]"
+              style={{ fontFamily: "var(--font-serif), Georgia, serif" }}
+            >
+              All goals
             </h2>
             {otherGoals.length > 0 && (
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-mono text-xs tabular-nums text-[--text-muted]">
                 {otherGoals.length}
               </span>
             )}
           </div>
           {otherGoals.length === 0 ? (
-            <p className="px-1 text-sm italic text-slate-400 dark:text-slate-500">
+            <p className="text-sm italic text-[--text-subtle]">
               No unlocked goals.
             </p>
           ) : (
-            <div className="w-full">
-              <AnimatePresence initial={false}>
-                {otherGoals.map((goal) => renderGoalCard(goal))}
-              </AnimatePresence>
-            </div>
+            <AnimatePresence initial={false}>
+              {otherGoals.map((goal) => renderGoalCard(goal))}
+            </AnimatePresence>
           )}
         </section>
       </div>
