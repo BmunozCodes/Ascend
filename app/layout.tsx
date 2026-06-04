@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Fraunces } from "next/font/google";
+import { AuthProvider } from "./providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,7 +15,8 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: "Ascend — Set your goals. Climb daily.",
-  description: "A goal-driven productivity app for people who commit, then climb.",
+  description:
+    "A goal-driven productivity app for people who commit, then climb.",
   themeColor: "#FAFAF9",
 };
 
@@ -25,7 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${fraunces.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

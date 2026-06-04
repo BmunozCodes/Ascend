@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Checkbox } from "./Checkbox";
+import { useAuth } from "./providers";
 import Link from "next/link";
 import {
   Sun,
@@ -12,6 +14,7 @@ import {
   Lock,
   ChevronDown,
   BarChart3,
+  LogOut,
 } from "lucide-react";
 
 type Task = {
@@ -31,11 +34,11 @@ type Goal = {
 };
 
 const ACCENTS = [
-  "#0EA5E9", // sky
-  "#10B981", // emerald
-  "#EAB308", // yellow
-  "#EC4899", // pink
-  "#8B5CF6", // violet
+  "#0EA5E9",
+  "#10B981",
+  "#EAB308",
+  "#EC4899",
+  "#8B5CF6",
 ];
 
 function todayString(): string {
@@ -66,7 +69,13 @@ function celebrate() {
   });
 }
 
-function MountainMark({ size = 24, color = "currentColor" }: { size?: number; color?: string }) {
+function MountainMark({
+  size = 24,
+  color = "currentColor",
+}: {
+  size?: number;
+  color?: string;
+}) {
   const scale = size / 52;
   return (
     <svg
@@ -89,15 +98,25 @@ function MountainMark({ size = 24, color = "currentColor" }: { size?: number; co
 }
 
 export default function Home() {
+  const { user, supabase, loading: authLoading } = useAuth();
+  const router = useRouter();
+
   const [goals, setGoals] = useState<Goal[]>([]);
   const [input, setInput] = useState("");
   const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
   const [taskInput, setTaskInput] = useState("");
   const [darkMode, setDarkMode] = useState(false);
+  const [darkLoaded, setDarkLoaded] = useState(false);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [lastEvaluatedDate, setLastEvaluatedDate] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, "complete" | "partial" | "rest">>({});
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login");
+    }
+  }, [authLoading, user, router]);
 
   useEffect(() => {
     const saved = localStorage.getItem("ascend-dark-mode");
@@ -109,16 +128,18 @@ export default function Home() {
       ).matches;
       setDarkMode(systemPrefersDark);
     }
+    setDarkLoaded(true);
   }, []);
 
   useEffect(() => {
+    if (!darkLoaded) return;
     if (darkMode) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
     localStorage.setItem("ascend-dark-mode", String(darkMode));
-  }, [darkMode]);
+  }, [darkMode, darkLoaded]);
 
   useEffect(() => {
     const saved = localStorage.getItem("ascend-goals");
@@ -279,6 +300,19 @@ export default function Home() {
       goals.map((g) =>
         g.id === goalId ? { ...g, lockedInFor: null } : g
       )
+    );
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }
+
+  if (authLoading || !user) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center">
+        <p className="text-sm text-[--text-muted]">Loading...</p>
+      </main>
     );
   }
 
@@ -477,6 +511,13 @@ export default function Home() {
           aria-label="Toggle dark mode"
         >
           {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+        <button
+          onClick={handleSignOut}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[--border] bg-[--bg-elevated] text-[--text-muted] transition-colors hover:text-[--text]"
+          aria-label="Sign out"
+        >
+          <LogOut size={16} />
         </button>
       </div>
 
